@@ -120,6 +120,9 @@ internal object MainCommand : Runnable {
 
         @Option(names = ["--custom-aapt2-binary"], description = ["Path to custom aapt2 binary"])
         var aaptPath: String = ""
+
+        @Option(names = ["--rip-lib"], description = ["Rips the lib (arm64-v8a etc.) from the APK"])
+        var ripLibs = arrayOf<String>()
     }
 
     override fun run() {

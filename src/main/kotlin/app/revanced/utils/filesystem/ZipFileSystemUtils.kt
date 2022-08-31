@@ -54,6 +54,8 @@ internal class ZipFileSystemUtils(
 
     internal fun write(path: String, content: ByteArray) = Files.write(zipFileSystem.getPath(path), content)
 
+    internal fun deleteRecursively(path: String) = zipFileSystem.getPath(path).deleteRecursively()
+
     private fun Path.getRelativePath(path: Path): Path = zipFileSystem.getPath(path.relativize(this).toString())
 
     // TODO: figure out why the file system is uncompressed by default and how to fix it

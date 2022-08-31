@@ -42,6 +42,15 @@ internal object Patcher {
                 }
             }
 
+            args.ripLibs.forEach {
+                logger.info("Ripping $it libs")
+                try {
+                    outputFileSystem.deleteRecursively("lib/$it")
+                } catch(e: Exception) {
+                    logger.warn("Failed to rip $it libs: $e")
+                }
+            }
+
             result.doNotCompress?.let { outputFileSystem.uncompress(*it.toTypedArray()) }
         }
     }
