@@ -37,6 +37,9 @@ internal object MainCommand : Runnable {
         @Option(names = ["-a", "--apk"], description = ["Input file to be patched"], required = true)
         lateinit var inputFile: File
 
+        @Option(names = ["--res-apk"], description = ["Resource input file to be patched"])
+        var inputResFile: List<File> = listOf()
+
         @Option(names = ["--uninstall"], description = ["Uninstall the mount variant"])
         var uninstall: Boolean = false
 
@@ -140,10 +143,10 @@ internal object MainCommand : Runnable {
 
         // the file to write to
         val outputFile = File(pArgs.outputPath)
-
         val patcher = app.revanced.patcher.Patcher(
             PatcherOptions(
                 args.inputFile,
+                args.inputResFile,
                 pArgs.cacheDirectory,
                 !pArgs.disableResourcePatching,
                 pArgs.aaptPath,
@@ -157,39 +160,37 @@ internal object MainCommand : Runnable {
             Adb(outputFile, patcher.data.packageMetadata.packageName, args.deploy!!, !pArgs.mount)
         }
 
-        val patchedFile = File(pArgs.cacheDirectory).resolve("${outputFile.nameWithoutExtension}_raw.apk")
-
         // start the patcher
-        Patcher.start(patcher, patchedFile)
+        val patchedRaw = Patcher.start(patcher, File(pArgs.cacheDirectory))
 
         val cacheDirectory = File(pArgs.cacheDirectory)
+        for (patchedFile in patchedRaw) {
+            // align the file
+            val alignedFile = cacheDirectory.resolve("${patchedFile.nameWithoutExtension}_aligned.apk")
+            Aligning.align(patchedFile, alignedFile)
 
-        // align the file
-        val alignedFile = cacheDirectory.resolve("${outputFile.nameWithoutExtension}_aligned.apk")
-        Aligning.align(patchedFile, alignedFile)
-
-        // sign the file
-        val finalFile = if (!pArgs.mount) {
-            val signedOutput = cacheDirectory.resolve("${outputFile.nameWithoutExtension}_signed.apk")
-            Signing.sign(
-                alignedFile,
-                signedOutput,
-                SigningOptions(
-                    pArgs.cn,
-                    pArgs.password,
-                    pArgs.keystorePath ?: outputFile.absoluteFile.parentFile
-                        .resolve("${outputFile.nameWithoutExtension}.keystore")
-                        .canonicalPath
+            // sign the file
+            val finalFile = if (!pArgs.mount) {
+                val signedOutput = cacheDirectory.resolve("${patchedFile.nameWithoutExtension}_signed.apk")
+                Signing.sign(
+                    alignedFile,
+                    signedOutput,
+                    SigningOptions(
+                        pArgs.cn,
+                        pArgs.password,
+                        pArgs.keystorePath ?: patchedFile.absoluteFile.parentFile
+                            .resolve("${patchedFile.nameWithoutExtension}.keystore")
+                            .canonicalPath
+                    )
                 )
-            )
-
-            signedOutput
-        } else
-            alignedFile
+                signedOutput
+            } else
+                alignedFile
+        }
 
         // finally copy to the specified output file
-        logger.info("Copying ${finalFile.name} to ${outputFile.name}")
-        finalFile.copyTo(outputFile, overwrite = true)
+        // logger.info("Copying ${finalFile.name} to ${outputFile.name}")
+        // finalFile.copyTo(outputFile, overwrite = true)
 
         // clean up the cache directory if needed
         if (pArgs.clean)
@@ -217,6 +218,7 @@ internal object MainCommand : Runnable {
         val patcher = app.revanced.patcher.Patcher(
             PatcherOptions(
                 args.inputFile,
+                args.inputResFile,
                 "uninstaller-cache",
                 false
             )
