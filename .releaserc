@@ -36,13 +36,6 @@
         ],
         successComment: false
       }
-    ],
-    [
-      "@saithodev/semantic-release-backmerge",
-      {
-        backmergeBranches: [{"from": "main", "to": "dev"}],
-        clearWorkspace: true
-      }
     ]
   ]
 }
