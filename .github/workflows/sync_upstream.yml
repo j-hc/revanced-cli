@@ -1,0 +1,43 @@
+name: Sync upstream
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */8 * * *"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.WF_TOKEN }}
+
+      - name: sync
+        id: sync
+        shell: bash
+        run: |
+          git config --global user.name 'j-hc'
+          git config --global user.email 'j-hc@users.noreply.github.com'
+          if [[ $(git log | grep Author | head -1) == *"semantic"* ]]; then
+            git reset --hard HEAD~1
+          fi
+          git remote add upstream https://github.com/revanced/revanced-cli
+          git push origin --delete $(git tag)
+          git tag -d $(git tag)
+          git fetch upstream
+          T=$(git tag --sort=creatordate | tail -1)
+          D=$(git tag --sort=-v:refname | sed "/${T}/Q")
+          git tag -d $D
+          C=$(git rev-list --left-right --count origin/main...remotes/upstream/main | awk '{print$2}')
+          echo "ahead $C commits"
+          if [ "$C" -gt 0 ]; then
+            echo "rebasing"
+            git rebase -X ours upstream/main
+            git push --tags -f
+            git push -f
+          else
+            echo "in sync"
+          fi
