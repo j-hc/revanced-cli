@@ -120,6 +120,16 @@ internal object PatchCommand : Runnable {
     private var aaptBinaryPath = File("")
 
     @CommandLine.Option(
+        names = ["--unsigned"], description = ["Disable signing of the final apk"]
+    )
+    private var unsigned: Boolean = false
+
+    @CommandLine.Option(
+        names = ["--rip-lib"], description = ["Rip native libs from APK (x86_64 etc.)"]
+    )
+    private var ripLibs = arrayOf<String>()
+
+    @CommandLine.Option(
         names = ["-p", "--purge"],
         description = ["Purge the temporary resource cache directory after patching"],
         showDefaultValue = ALWAYS
@@ -309,10 +319,12 @@ internal object PatchCommand : Runnable {
                 )
             }
 
+            val inputZipFile = ZipFile(this)
+            inputZipFile.entries.removeIf { entry -> ripLibs.any { entry.fileName.startsWith("lib/$it") } }
             // TODO: Do not compress result.doNotCompress
 
             file.copyEntriesFromFileAligned(
-                ZipFile(this), ZipAligner::getEntryAlignment
+                inputZipFile, ZipAligner::getEntryAlignment
             )
         }
 
@@ -325,7 +337,7 @@ internal object PatchCommand : Runnable {
      * @param inputFile The APK file to sign.
      * @return The signed APK file. If [mount] is true, the input file will be returned.
      */
-    private fun sign(inputFile: File) = if (mount) inputFile
+    private fun sign(inputFile: File) = if (mount || unsigned) inputFile
     else {
         logger.info("Signing ${inputFile.name}")
 

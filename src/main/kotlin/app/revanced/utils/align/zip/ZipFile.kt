@@ -11,7 +11,7 @@ import java.util.zip.CRC32
 import java.util.zip.Deflater
 
 class ZipFile(file: File) : Closeable {
-    private var entries: MutableList<ZipEntry> = mutableListOf()
+    internal var entries: MutableList<ZipEntry> = mutableListOf()
 
     private val filePointer: RandomAccessFile = RandomAccessFile(file, "rw")
     private var centralDirectoryNeedsRewrite = false

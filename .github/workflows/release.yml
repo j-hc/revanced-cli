@@ -42,5 +42,5 @@ jobs:
         run: npm install
       - name: Release
         env:
-          GITHUB_TOKEN: ${{ secrets.REPOSITORY_PUSH_ACCESS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm exec semantic-release
