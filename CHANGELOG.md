@@ -1,3 +1,10 @@
+# [3.2.0](https://github.com/j-hc/revanced-cli/compare/v3.1.1...v3.2.0) (2023-09-12)
+
+
+### Features
+
+* rip-lib and unsigned ([bdae08e](https://github.com/j-hc/revanced-cli/commit/bdae08ee00a12d16a7e8ad1ac84f2015856ede5b))
+
 ## [3.1.1](https://github.com/ReVanced/revanced-cli/compare/v3.1.0...v3.1.1) (2023-09-09)
 
 
