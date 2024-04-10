@@ -76,20 +76,3 @@ tasks {
 // Tracking: https://github.com/KengoTODA/gradle-semantic-release-plugin/issues/435
 
 // The maven-publish is also necessary to make the signing plugin work.
-publishing {
-    repositories {
-        mavenLocal()
-    }
-
-    publications {
-        create<MavenPublication>("revanced-cli-publication") {
-            from(components["java"])
-        }
-    }
-}
-
-signing {
-    useGpgCmd()
-
-    sign(publishing.publications["revanced-cli-publication"])
-}

@@ -1,0 +1,77 @@
+name: Sync upstream
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 15 * * *"
+
+jobs:
+  check:
+    permissions: write-all
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: sync
+        id: sync
+        shell: bash
+        run: |
+          git config --global user.name 'j-hc'
+          git config --global user.email 'j-hc@users.noreply.github.com'
+          git remote add upstream https://github.com/revanced/revanced-cli
+          git fetch upstream
+
+          if ! git show -s --format=%s upstream/main | grep -q -- '-dev'; then
+            C=$(git rev-list --left-right --count origin/main...remotes/upstream/main | awk '{print $2}')
+            echo "ahead $C commits."
+            if [ "$C" -gt 1 ]; then
+              echo "rebase"
+              git rebase upstream/main
+              git tag -d $(git tag)
+              git fetch upstream --tags -f
+              git push -f
+              git push --tags -f
+              echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
+            else
+              echo "in sync"
+              echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "dev"
+            echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: build
+        id: build
+        if: ${{ steps.sync.outputs.SHOULD_BUILD == 1 }}
+        run: |
+          T=$(git tag --sort=creatordate | tail -1)
+          LT=${T: -1}
+          LT=$((LT + 1))
+          RT=${T%?}${LT}
+          sed -i "s/^version =.*/version = ${RT:1}/g" gradle.properties
+          LIB_T=$(grep 'revanced-library = "' gradle/libs.versions.toml | awk -F '"' '{print $2}')
+          git clone https://github.com/revanced/revanced-library  
+          cd revanced-library
+          git checkout v${LIB_T}
+          git apply ../lib.patch
+          GITHUB_ACTOR=${{ secrets.GH_GRADLE_ACTOR }} GITHUB_TOKEN=${{ secrets.GH_GRADLE_TOKEN }} ./gradlew publishToMavenLocal
+          cd ..
+          GITHUB_ACTOR=${{ secrets.GH_GRADLE_ACTOR }} GITHUB_TOKEN=${{ secrets.GH_GRADLE_TOKEN }} ./gradlew build
+          echo "RT=$RT" >> $GITHUB_OUTPUT
+
+      - name: Release
+        if: ${{ steps.sync.outputs.SHOULD_BUILD == 1 }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          release_name: ${{ steps.build.outputs.RT }}
+          tag: ${{ steps.build.outputs.RT }}
+          file: build/libs/*-all.jar
+          file_glob: true
+          overwrite: true
